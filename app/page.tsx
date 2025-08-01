@@ -640,9 +640,54 @@ export default function MedicalChatAssistant() {
                                     <span className="text-xs font-medium capitalize">{message.severity} Priority</span>
                                   </div>
                                 )}
-                                <p className="text-sm whitespace-pre-wrap break-words word-wrap pr-6 leading-relaxed">
-                                  {message.content}
-                                </p>
+                                <div className="text-sm break-words word-wrap pr-6 leading-relaxed">
+                                  {message.content.split("\n").map((line, index) => {
+                                    // Handle numbered lists
+                                    if (/^\d+\./.test(line.trim())) {
+                                      return (
+                                        <div key={index} className="mb-2">
+                                          <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                            {line.match(/^\d+\./)?.[0]}
+                                          </span>
+                                          <span className="ml-1">{line.replace(/^\d+\.\s*/, "")}</span>
+                                        </div>
+                                      )
+                                    }
+
+                                    // Handle bullet points
+                                    if (/^[•·-]/.test(line.trim())) {
+                                      return (
+                                        <div key={index} className="mb-1 ml-4">
+                                          <span className="text-blue-500 mr-2">•</span>
+                                          <span>{line.replace(/^[•·-]\s*/, "")}</span>
+                                        </div>
+                                      )
+                                    }
+
+                                    // Handle warning messages
+                                    if (line.includes("⚠️")) {
+                                      return (
+                                        <div
+                                          key={index}
+                                          className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-yellow-800 dark:text-yellow-200 text-xs"
+                                        >
+                                          {line}
+                                        </div>
+                                      )
+                                    }
+
+                                    // Regular paragraphs
+                                    if (line.trim()) {
+                                      return (
+                                        <p key={index} className="mb-2">
+                                          {line}
+                                        </p>
+                                      )
+                                    }
+
+                                    return null
+                                  })}
+                                </div>
                                 <div className="flex items-center justify-between mt-2">
                                   <p
                                     className={`text-xs ${
