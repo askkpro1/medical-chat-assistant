@@ -25,10 +25,31 @@ import {
   Clock,
   MessageSquare,
   AlertCircle,
+  Trash2,
+  MoreVertical,
+  Archive,
+  History,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useTheme } from "next-themes"
 import { Tooltip, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { SpeechRecognition } from "types/web"
 
 interface Message {
@@ -45,6 +66,14 @@ interface TypingIndicator {
   message: string
 }
 
+interface ChatSession {
+  id: string
+  title: string
+  messages: Message[]
+  createdAt: Date
+  lastActivity: Date
+}
+
 export default function MedicalChatAssistant() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
@@ -53,37 +82,75 @@ export default function MedicalChatAssistant() {
   const [typingIndicator, setTypingIndicator] = useState<TypingIndicator>({ isTyping: false, message: "" })
   const [chatStats, setChatStats] = useState({ totalMessages: 0 })
   const [error, setError] = useState<string | null>(null)
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null)
+  const [showClearDialog, setShowClearDialog] = useState(false)
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false)
   const { theme, setTheme } = useTheme()
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
 
-  // Load chat history from localStorage on mount
+  // Load chat history and sessions from localStorage on mount
   useEffect(() => {
-    const savedMessages = localStorage.getItem("medical-chat-history")
-    if (savedMessages) {
+    const savedSessions = localStorage.getItem("medical-chat-sessions")
+    const savedCurrentSession = localStorage.getItem("medical-current-session")
+
+    if (savedSessions) {
       try {
-        const parsed = JSON.parse(savedMessages)
-        setMessages(
-          parsed.map((msg: any) => ({
+        const parsed = JSON.parse(savedSessions).map((session: any) => ({
+          ...session,
+          createdAt: new Date(session.createdAt),
+          lastActivity: new Date(session.lastActivity),
+          messages: session.messages.map((msg: any) => ({
             ...msg,
             timestamp: new Date(msg.timestamp),
           })),
-        )
+        }))
+        setChatSessions(parsed)
+
+        if (savedCurrentSession) {
+          const currentSession = parsed.find((s: ChatSession) => s.id === savedCurrentSession)
+          if (currentSession) {
+            setCurrentSessionId(currentSession.id)
+            setMessages(currentSession.messages)
+          }
+        }
       } catch (error) {
-        console.error("Error loading chat history:", error)
+        console.error("Error loading chat sessions:", error)
       }
     }
   }, [])
 
-  // Save chat history to localStorage
+  // Save chat sessions to localStorage
   useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem("medical-chat-history", JSON.stringify(messages))
-      setChatStats({
-        totalMessages: messages.length,
-      })
+    if (chatSessions.length > 0) {
+      localStorage.setItem("medical-chat-sessions", JSON.stringify(chatSessions))
     }
-  }, [messages])
+    if (currentSessionId) {
+      localStorage.setItem("medical-current-session", currentSessionId)
+    }
+  }, [chatSessions, currentSessionId])
+
+  // Update current session when messages change
+  useEffect(() => {
+    if (messages.length > 0 && currentSessionId) {
+      setChatSessions((prev) =>
+        prev.map((session) =>
+          session.id === currentSessionId
+            ? {
+                ...session,
+                messages,
+                lastActivity: new Date(),
+                title: session.title || generateSessionTitle(messages[0]?.content || "New Chat"),
+              }
+            : session,
+        ),
+      )
+      setChatStats({ totalMessages: messages.length })
+    }
+  }, [messages, currentSessionId])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -118,6 +185,76 @@ export default function MedicalChatAssistant() {
     }
   }, [])
 
+  const generateSessionTitle = (firstMessage: string): string => {
+    const words = firstMessage.split(" ").slice(0, 4).join(" ")
+    return words.length > 30 ? words.substring(0, 30) + "..." : words
+  }
+
+  const createNewSession = () => {
+    const newSession: ChatSession = {
+      id: Date.now().toString(),
+      title: "New Chat",
+      messages: [],
+      createdAt: new Date(),
+      lastActivity: new Date(),
+    }
+
+    setChatSessions((prev) => [newSession, ...prev])
+    setCurrentSessionId(newSession.id)
+    setMessages([])
+    setError(null)
+  }
+
+  const loadSession = (sessionId: string) => {
+    const session = chatSessions.find((s) => s.id === sessionId)
+    if (session) {
+      setCurrentSessionId(sessionId)
+      setMessages(session.messages)
+      setShowHistoryPanel(false)
+      setError(null)
+    }
+  }
+
+  const deleteSession = (sessionId: string) => {
+    setChatSessions((prev) => prev.filter((s) => s.id !== sessionId))
+    if (currentSessionId === sessionId) {
+      const remainingSessions = chatSessions.filter((s) => s.id !== sessionId)
+      if (remainingSessions.length > 0) {
+        loadSession(remainingSessions[0].id)
+      } else {
+        createNewSession()
+      }
+    }
+  }
+
+  const deleteMessage = (messageId: string) => {
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId))
+    setMessageToDelete(null)
+    setShowDeleteDialog(false)
+  }
+
+  const clearCurrentChat = () => {
+    if (currentSessionId) {
+      setChatSessions((prev) =>
+        prev.map((session) =>
+          session.id === currentSessionId
+            ? { ...session, messages: [], title: "New Chat", lastActivity: new Date() }
+            : session,
+        ),
+      )
+    }
+    setMessages([])
+    setError(null)
+    setShowClearDialog(false)
+  }
+
+  const archiveOldChats = () => {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+
+    setChatSessions((prev) => prev.filter((session) => session.lastActivity > oneWeekAgo))
+  }
+
   const startListening = () => {
     if (recognitionRef.current) {
       setIsListening(true)
@@ -134,6 +271,11 @@ export default function MedicalChatAssistant() {
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
+
+    // Create new session if none exists
+    if (!currentSessionId) {
+      createNewSession()
+    }
 
     console.log("🚀 Sending message:", input)
     setError(null)
@@ -168,7 +310,6 @@ export default function MedicalChatAssistant() {
       })
 
       console.log("📨 Response status:", response.status)
-      console.log("📨 Response headers:", Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         const errorData = await response.text()
@@ -222,6 +363,7 @@ export default function MedicalChatAssistant() {
     const chatData = {
       exportDate: new Date().toISOString(),
       totalMessages: messages.length,
+      sessionTitle: chatSessions.find((s) => s.id === currentSessionId)?.title || "Current Chat",
       messages: messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
@@ -241,13 +383,6 @@ export default function MedicalChatAssistant() {
     URL.revokeObjectURL(url)
   }
 
-  const clearChat = () => {
-    setMessages([])
-    localStorage.removeItem("medical-chat-history")
-    setChatStats({ totalMessages: 0 })
-    setError(null)
-  }
-
   const getSeverityColor = (severity?: string) => {
     switch (severity) {
       case "high":
@@ -262,258 +397,416 @@ export default function MedicalChatAssistant() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 transition-colors">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-2xl font-bold text-blue-700 dark:text-blue-400">
-                  <Bot className="h-8 w-8" />🩺 Medical Chat Assistant
+        <div className="max-w-6xl mx-auto flex gap-4">
+          {/* Chat History Sidebar */}
+          {showHistoryPanel && (
+            <Card className="w-80 h-[700px] flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Chat History
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => setShowHistoryPanel(false)}>
+                    ×
+                  </Button>
                 </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    <MessageSquare className="h-3 w-3" />
-                    {chatStats.totalMessages}
-                  </Badge>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                <div className="flex gap-2 mb-4">
+                  <Button onClick={createNewSession} size="sm" className="flex-1">
+                    New Chat
+                  </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                      >
-                        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                      <Button onClick={archiveOldChats} variant="outline" size="sm">
+                        <Archive className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Toggle theme</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" onClick={exportChat} disabled={messages.length === 0}>
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Export chat history</TooltipContent>
+                    <TooltipContent>Archive chats older than 7 days</TooltipContent>
                   </Tooltip>
                 </div>
-              </div>
 
-              <Alert className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Important:</strong> This assistant provides general health information only. It is not a
-                  substitute for professional medical advice, diagnosis, or treatment. Always consult with qualified
-                  healthcare providers for medical concerns.
-                  <strong className="text-red-600">
-                    {" "}
-                    For emergencies, call 108 (Medical Emergency) or 112 (National Emergency).
-                  </strong>
-                </AlertDescription>
-              </Alert>
+                <ScrollArea className="flex-1">
+                  <div className="space-y-2">
+                    {chatSessions.map((session) => (
+                      <div
+                        key={session.id}
+                        className={`p-3 rounded-lg border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                          currentSessionId === session.id ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200" : ""
+                        }`}
+                        onClick={() => loadSession(session.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{session.title}</p>
+                            <p className="text-xs text-gray-500">
+                              {session.messages.length} messages • {session.lastActivity.toLocaleDateString()}
+                            </p>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => loadSession(session.id)}>Load Chat</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => deleteSession(session.id)} className="text-red-600">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
 
-              {/* Error Display */}
-              {error && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertCircle className="h-4 w-4" />
+          {/* Main Chat Interface */}
+          <div className="flex-1">
+            {/* Header */}
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-2xl font-bold text-blue-700 dark:text-blue-400">
+                    <Bot className="h-8 w-8" />🩺 Medical Chat Assistant
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <MessageSquare className="h-3 w-3" />
+                      {chatStats.totalMessages}
+                    </Badge>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" onClick={() => setShowHistoryPanel(!showHistoryPanel)}>
+                          <History className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Chat History</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                        >
+                          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Toggle theme</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" onClick={exportChat} disabled={messages.length === 0}>
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Export chat history</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+
+                <Alert className="mt-4">
+                  <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Error:</strong> {error}
-                    <br />
-                    <small>Check the browser console for more details.</small>
+                    <strong>Important:</strong> This assistant provides general health information only. It is not a
+                    substitute for professional medical advice, diagnosis, or treatment. Always consult with qualified
+                    healthcare providers for medical concerns.
+                    <strong className="text-red-600">
+                      {" "}
+                      For emergencies, call 108 (Medical Emergency) or 112 (National Emergency).
+                    </strong>
                   </AlertDescription>
                 </Alert>
-              )}
-            </CardHeader>
-          </Card>
 
-          {/* Chat Interface */}
-          <Card className="h-[600px] flex flex-col">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Chat with Medical Assistant</CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={clearChat} disabled={messages.length === 0}>
-                    Clear Chat
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              {/* Messages */}
-              <ScrollArea className="flex-1 pr-4 mb-4" ref={scrollAreaRef}>
-                {messages.length === 0 ? (
-                  <div className="text-center text-gray-500 mt-8">
-                    <Bot className="h-12 w-12 mx-auto mb-4 text-blue-400" />
-                    <p className="text-lg font-medium">Welcome to your Medical Assistant</p>
-                    <p className="text-sm mt-2">
-                      Describe your symptoms or ask health-related questions to get started.
-                    </p>
-                    <div className="mt-4 text-xs text-gray-400">
-                      💡 Try voice input, export your chat, or switch to dark mode
-                    </div>
+                {/* Error Display */}
+                {error && (
+                  <Alert variant="destructive" className="mt-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Error:</strong> {error}
+                      <br />
+                      <small>Check the browser console for more details.</small>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardHeader>
+            </Card>
+
+            {/* Chat Interface */}
+            <Card className="h-[600px] flex flex-col">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    {chatSessions.find((s) => s.id === currentSessionId)?.title || "Chat with Medical Assistant"}
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={createNewSession}>
+                      New Chat
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowClearDialog(true)}
+                      disabled={messages.length === 0}
+                    >
+                      Clear Chat
+                    </Button>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                      >
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                {/* Messages */}
+                <ScrollArea className="flex-1 pr-4 mb-4" ref={scrollAreaRef}>
+                  {messages.length === 0 ? (
+                    <div className="text-center text-gray-500 mt-8">
+                      <Bot className="h-12 w-12 mx-auto mb-4 text-blue-400" />
+                      <p className="text-lg font-medium">Welcome to your Medical Assistant</p>
+                      <p className="text-sm mt-2">
+                        Describe your symptoms or ask health-related questions to get started.
+                      </p>
+                      <div className="mt-4 text-xs text-gray-400">
+                        💡 Try voice input, export your chat, or browse chat history
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.map((message) => (
                         <div
-                          className={`flex gap-3 max-w-[85%] ${
-                            message.role === "user" ? "flex-row-reverse" : "flex-row"
-                          }`}
+                          key={message.id}
+                          className={`flex gap-3 group ${message.role === "user" ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                              message.role === "user"
-                                ? "bg-blue-500 text-white"
-                                : message.role === "system"
-                                  ? "bg-red-500 text-white"
-                                  : "bg-green-500 text-white"
+                            className={`flex gap-3 max-w-[85%] ${
+                              message.role === "user" ? "flex-row-reverse" : "flex-row"
                             }`}
                           >
-                            {message.role === "user" ? (
-                              <User className="h-4 w-4" />
-                            ) : message.role === "system" ? (
-                              <AlertCircle className="h-4 w-4" />
-                            ) : (
-                              <Bot className="h-4 w-4" />
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-2">
                             <div
-                              className={`rounded-lg p-3 ${
+                              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                                 message.role === "user"
                                   ? "bg-blue-500 text-white"
                                   : message.role === "system"
-                                    ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800"
-                                    : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                    ? "bg-red-500 text-white"
+                                    : "bg-green-500 text-white"
                               }`}
                             >
-                              {message.severity && message.role !== "user" && (
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className={`w-2 h-2 rounded-full ${getSeverityColor(message.severity)}`} />
-                                  <span className="text-xs font-medium capitalize">{message.severity} Priority</span>
-                                </div>
+                              {message.role === "user" ? (
+                                <User className="h-4 w-4" />
+                              ) : message.role === "system" ? (
+                                <AlertCircle className="h-4 w-4" />
+                              ) : (
+                                <Bot className="h-4 w-4" />
                               )}
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                              <div className="flex items-center justify-between mt-2">
-                                <p
-                                  className={`text-xs ${
+                            </div>
+                            <div className="flex flex-col gap-2 flex-1">
+                              <div
+                                className={`rounded-lg p-3 relative ${
+                                  message.role === "user"
+                                    ? "bg-blue-500 text-white"
+                                    : message.role === "system"
+                                      ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800"
+                                      : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                }`}
+                              >
+                                {/* Delete button */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className={`absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity ${
                                     message.role === "user"
-                                      ? "text-blue-100"
-                                      : message.role === "system"
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-gray-500 dark:text-gray-400"
+                                      ? "text-white hover:bg-blue-600"
+                                      : "hover:bg-gray-200 dark:hover:bg-gray-700"
                                   }`}
+                                  onClick={() => {
+                                    setMessageToDelete(message.id)
+                                    setShowDeleteDialog(true)
+                                  }}
                                 >
-                                  <Clock className="h-3 w-3 inline mr-1" />
-                                  {message.timestamp.toLocaleTimeString()}
-                                </p>
-                                {message.role === "assistant" && (
-                                  <div className="flex gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className={`h-6 w-6 p-0 ${
-                                        message.feedback === "positive" ? "text-green-600" : "text-gray-400"
-                                      }`}
-                                      onClick={() => provideFeedback(message.id, "positive")}
-                                    >
-                                      <ThumbsUp className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className={`h-6 w-6 p-0 ${
-                                        message.feedback === "negative" ? "text-red-600" : "text-gray-400"
-                                      }`}
-                                      onClick={() => provideFeedback(message.id, "negative")}
-                                    >
-                                      <ThumbsDown className="h-3 w-3" />
-                                    </Button>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+
+                                {message.severity && message.role !== "user" && (
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <div className={`w-2 h-2 rounded-full ${getSeverityColor(message.severity)}`} />
+                                    <span className="text-xs font-medium capitalize">{message.severity} Priority</span>
                                   </div>
                                 )}
+                                <p className="text-sm whitespace-pre-wrap pr-6">{message.content}</p>
+                                <div className="flex items-center justify-between mt-2">
+                                  <p
+                                    className={`text-xs ${
+                                      message.role === "user"
+                                        ? "text-blue-100"
+                                        : message.role === "system"
+                                          ? "text-red-600 dark:text-red-400"
+                                          : "text-gray-500 dark:text-gray-400"
+                                    }`}
+                                  >
+                                    <Clock className="h-3 w-3 inline mr-1" />
+                                    {message.timestamp.toLocaleTimeString()}
+                                  </p>
+                                  {message.role === "assistant" && (
+                                    <div className="flex gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`h-6 w-6 p-0 ${
+                                          message.feedback === "positive" ? "text-green-600" : "text-gray-400"
+                                        }`}
+                                        onClick={() => provideFeedback(message.id, "positive")}
+                                      >
+                                        <ThumbsUp className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`h-6 w-6 p-0 ${
+                                          message.feedback === "negative" ? "text-red-600" : "text-gray-400"
+                                        }`}
+                                        onClick={() => provideFeedback(message.id, "negative")}
+                                      >
+                                        <ThumbsDown className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
 
-                    {/* Typing Indicator */}
-                    {typingIndicator.isTyping && (
-                      <div className="flex gap-3 justify-start">
-                        <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center flex-shrink-0">
-                          <Bot className="h-4 w-4" />
-                        </div>
-                        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="text-sm text-gray-600 dark:text-gray-400">{typingIndicator.message}</span>
+                      {/* Typing Indicator */}
+                      {typingIndicator.isTyping && (
+                        <div className="flex gap-3 justify-start">
+                          <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center flex-shrink-0">
+                            <Bot className="h-4 w-4" />
+                          </div>
+                          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {typingIndicator.message}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </ScrollArea>
-
-              {/* Input */}
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <Textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Describe your symptoms or ask a health question..."
-                      disabled={isLoading}
-                      className="min-h-[44px] max-h-32 resize-none pr-12"
-                      rows={1}
-                    />
-                    <div className="absolute right-2 top-2 flex gap-1">
-                      {recognitionRef.current && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={isListening ? stopListening : startListening}
-                              disabled={isLoading}
-                            >
-                              {isListening ? <MicOff className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>{isListening ? "Stop listening" : "Voice input"}</TooltipContent>
-                        </Tooltip>
                       )}
                     </div>
+                  )}
+                </ScrollArea>
+
+                {/* Input */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <Textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Describe your symptoms or ask a health question..."
+                        disabled={isLoading}
+                        className="min-h-[44px] max-h-32 resize-none pr-12"
+                        rows={1}
+                      />
+                      <div className="absolute right-2 top-2 flex gap-1">
+                        {recognitionRef.current && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={isListening ? stopListening : startListening}
+                                disabled={isLoading}
+                              >
+                                {isListening ? (
+                                  <MicOff className="h-4 w-4 text-red-500" />
+                                ) : (
+                                  <Mic className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{isListening ? "Stop listening" : "Voice input"}</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      onClick={sendMessage}
+                      disabled={!input.trim() || isLoading}
+                      size="icon"
+                      className="h-11 w-11"
+                    >
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
                   </div>
-                  <Button onClick={sendMessage} disabled={!input.trim() || isLoading} size="icon" className="h-11 w-11">
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
+
+                  {isListening && (
+                    <div className="text-center">
+                      <Badge variant="secondary" className="animate-pulse">
+                        🎤 Listening... Speak now
+                      </Badge>
+                    </div>
+                  )}
                 </div>
+              </CardContent>
+            </Card>
 
-                {isListening && (
-                  <div className="text-center">
-                    <Badge variant="secondary" className="animate-pulse">
-                      🎤 Listening... Speak now
-                    </Badge>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Footer */}
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
-            <p>Built with Next.js, OpenAI GPT-4, and Supabase • Always consult healthcare professionals</p>
-            <p className="text-xs mt-1">For emergencies: 108 (Medical) or 112 (National Emergency) • India</p>
+            {/* Footer */}
+            <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
+              <p>Built with Next.js, OpenAI GPT-4, and Supabase • Always consult healthcare professionals</p>
+              <p className="text-xs mt-1">For emergencies: 108 (Medical) or 112 (National Emergency) • India</p>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Delete Message Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this message? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => messageToDelete && deleteMessage(messageToDelete)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Chat Dialog */}
+      <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Current Chat</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to clear all messages in this chat? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={clearCurrentChat} className="bg-red-600 hover:bg-red-700">
+              Clear Chat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   )
 }
