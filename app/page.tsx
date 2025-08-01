@@ -29,6 +29,7 @@ import {
   MoreVertical,
   Archive,
   History,
+  Plus,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useTheme } from "next-themes"
@@ -471,11 +472,12 @@ export default function MedicalChatAssistant() {
           {/* Main Chat Interface */}
           <div className="flex-1">
             {/* Header */}
-            <Card className="mb-6">
-              <CardHeader>
+            <Card className="mb-4">
+              <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-2xl font-bold text-blue-700 dark:text-blue-400">
-                    <Bot className="h-8 w-8" />🩺 Medical Chat Assistant
+                  <CardTitle className="flex items-center gap-2 text-xl font-bold text-blue-700 dark:text-blue-400">
+                    <Bot className="h-6 w-6" />
+                    Medical Chat Assistant
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="flex items-center gap-1">
@@ -508,32 +510,27 @@ export default function MedicalChatAssistant() {
                           <Download className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Export chat history</TooltipContent>
+                      <TooltipContent>Export chat</TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
 
-                <Alert className="mt-4">
+                <Alert className="mt-3">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Important:</strong> This assistant provides general health information only. It is not a
-                    substitute for professional medical advice, diagnosis, or treatment. Always consult with qualified
-                    healthcare providers for medical concerns.
-                    <strong className="text-red-600">
-                      {" "}
-                      For emergencies, call 108 (Medical Emergency) or 112 (National Emergency).
+                  <AlertDescription className="text-sm">
+                    <strong>Important:</strong> This provides general health information only. Always consult healthcare
+                    providers for medical concerns.
+                    <strong className="text-red-600 ml-1">
+                      For emergencies: 108 (Medical) or 112 (National Emergency)
                     </strong>
                   </AlertDescription>
                 </Alert>
 
-                {/* Error Display */}
                 {error && (
-                  <Alert variant="destructive" className="mt-4">
+                  <Alert variant="destructive" className="mt-3">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
+                    <AlertDescription className="text-sm">
                       <strong>Error:</strong> {error}
-                      <br />
-                      <small>Check the browser console for more details.</small>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -541,15 +538,17 @@ export default function MedicalChatAssistant() {
             </Card>
 
             {/* Chat Interface */}
-            <Card className="h-[600px] flex flex-col">
+            <Card className="h-[650px] flex flex-col">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">
-                    {chatSessions.find((s) => s.id === currentSessionId)?.title || "Chat with Medical Assistant"}
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    {chatSessions.find((s) => s.id === currentSessionId)?.title || "Medical Chat Assistant"}
                   </CardTitle>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={createNewSession}>
-                      New Chat
+                      <Plus className="h-4 w-4 mr-1" />
+                      New
                     </Button>
                     <Button
                       variant="outline"
@@ -557,7 +556,8 @@ export default function MedicalChatAssistant() {
                       onClick={() => setShowClearDialog(true)}
                       disabled={messages.length === 0}
                     >
-                      Clear Chat
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Clear
                     </Button>
                   </div>
                 </div>
@@ -566,14 +566,16 @@ export default function MedicalChatAssistant() {
                 {/* Messages */}
                 <ScrollArea className="flex-1 pr-4 mb-4" ref={scrollAreaRef}>
                   {messages.length === 0 ? (
-                    <div className="text-center text-gray-500 mt-8">
-                      <Bot className="h-12 w-12 mx-auto mb-4 text-blue-400" />
-                      <p className="text-lg font-medium">Welcome to your Medical Assistant</p>
-                      <p className="text-sm mt-2">
-                        Describe your symptoms or ask health-related questions to get started.
+                    <div className="text-center text-gray-500 mt-12">
+                      <Bot className="h-16 w-16 mx-auto mb-4 text-blue-400" />
+                      <p className="text-xl font-medium mb-2">Welcome to Medical Assistant</p>
+                      <p className="text-sm text-gray-400 mb-4">
+                        Ask health questions or describe symptoms to get started
                       </p>
-                      <div className="mt-4 text-xs text-gray-400">
-                        💡 Try voice input, export your chat, or browse chat history
+                      <div className="flex justify-center gap-4 text-xs text-gray-400">
+                        <span>💬 Voice Input</span>
+                        <span>📱 Mobile Friendly</span>
+                        <span>🔒 Private & Secure</span>
                       </div>
                     </div>
                   ) : (
