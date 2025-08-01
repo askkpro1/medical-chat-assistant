@@ -196,7 +196,7 @@ export default function MedicalChatAssistant() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "I apologize, but I encountered an error. Please try again later. For medical emergencies, please call 108 or 112 immediately.",
+          "I apologize, but I encountered an error. Please try again later. For medical emergencies, please call 108 (Medical Emergency) or 112 (National Emergency) immediately.",
         timestamp: new Date(),
         severity: "medium",
       }
