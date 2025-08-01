@@ -564,7 +564,7 @@ export default function MedicalChatAssistant() {
               </CardHeader>
               <CardContent className="flex-1 flex flex-col">
                 {/* Messages */}
-                <ScrollArea className="flex-1 pr-4 mb-4" ref={scrollAreaRef}>
+                <ScrollArea className="flex-1 pr-4 mb-4 max-h-[500px] overflow-y-auto" ref={scrollAreaRef}>
                   {messages.length === 0 ? (
                     <div className="text-center text-gray-500 mt-12">
                       <Bot className="h-16 w-16 mx-auto mb-4 text-blue-400" />
@@ -586,7 +586,7 @@ export default function MedicalChatAssistant() {
                           className={`flex gap-3 group ${message.role === "user" ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`flex gap-3 max-w-[85%] ${
+                            className={`flex gap-3 max-w-[80%] ${
                               message.role === "user" ? "flex-row-reverse" : "flex-row"
                             }`}
                           >
@@ -609,7 +609,7 @@ export default function MedicalChatAssistant() {
                             </div>
                             <div className="flex flex-col gap-2 flex-1">
                               <div
-                                className={`rounded-lg p-3 relative ${
+                                className={`rounded-lg p-3 relative break-words overflow-hidden ${
                                   message.role === "user"
                                     ? "bg-blue-500 text-white"
                                     : message.role === "system"
@@ -640,7 +640,9 @@ export default function MedicalChatAssistant() {
                                     <span className="text-xs font-medium capitalize">{message.severity} Priority</span>
                                   </div>
                                 )}
-                                <p className="text-sm whitespace-pre-wrap pr-6">{message.content}</p>
+                                <p className="text-sm whitespace-pre-wrap break-words word-wrap pr-6 leading-relaxed">
+                                  {message.content}
+                                </p>
                                 <div className="flex items-center justify-between mt-2">
                                   <p
                                     className={`text-xs ${
