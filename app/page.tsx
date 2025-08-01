@@ -477,7 +477,7 @@ export default function MedicalChatAssistant() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-xl font-bold text-blue-700 dark:text-blue-400">
                     <Bot className="h-6 w-6" />
-                    Medical Chat Assistant
+                    MediChat India
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="flex items-center gap-1">
@@ -543,7 +543,7 @@ export default function MedicalChatAssistant() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" />
-                    {chatSessions.find((s) => s.id === currentSessionId)?.title || "Medical Chat Assistant"}
+                    MediChat India - AI Health Assistant
                   </CardTitle>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={createNewSession}>
@@ -568,7 +568,7 @@ export default function MedicalChatAssistant() {
                   {messages.length === 0 ? (
                     <div className="text-center text-gray-500 mt-12">
                       <Bot className="h-16 w-16 mx-auto mb-4 text-blue-400" />
-                      <p className="text-xl font-medium mb-2">Welcome to Medical Assistant</p>
+                      <p className="text-xl font-medium mb-2">Welcome to MediChat India</p>
                       <p className="text-sm text-gray-400 mb-4">
                         Ask health questions or describe symptoms to get started
                       </p>

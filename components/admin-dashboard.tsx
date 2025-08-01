@@ -69,7 +69,7 @@ export default function AdminDashboard() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `medical-chat-analytics-${new Date().toISOString().split("T")[0]}.csv`
+      a.download = `medichat-india-analytics-${new Date().toISOString().split("T")[0]}.csv`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Medical Chat Analytics</h1>
+        <h1 className="text-3xl font-bold">MediChat India - Analytics Dashboard</h1>
         <Button onClick={exportData} className="flex items-center gap-2">
           <Download className="h-4 w-4" />
           Export Data

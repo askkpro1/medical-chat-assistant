@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     console.log("📊 Assessed severity:", severity)
 
     // Enhanced system prompt for India
-    const systemPrompt = `You are a helpful medical assistant for users in India. Your role is to provide general health information and guidance, but you must:
+    const systemPrompt = `You are MediChat India, a helpful AI medical assistant designed specifically for users in India. Your role is to provide general health information and guidance, but you must:
 
 1. NEVER provide specific medical diagnoses
 2. ALWAYS recommend consulting with healthcare professionals for serious concerns

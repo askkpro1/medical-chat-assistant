@@ -1,7 +1,27 @@
 {
-  "name": "medical-chat-assistant",
-  "version": "0.1.0",
+  "name": "medichat-india",
+  "version": "1.0.0",
   "private": true,
+  "description": "AI-powered medical assistant designed for India with local healthcare context and emergency services",
+  "keywords": [
+    "medical-assistant",
+    "healthcare",
+    "ai",
+    "india",
+    "nextjs",
+    "openai",
+    "supabase"
+  ],
+  "homepage": "https://medichat-india.vercel.app",
+  "bugs": {
+    "url": "https://github.com/your-username/medichat-india/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/medichat-india"
+  },
+  "license": "MIT",
+  "author": "MediChat India Team",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
