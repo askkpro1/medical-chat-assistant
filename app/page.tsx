@@ -642,45 +642,98 @@ export default function MedicalChatAssistant() {
                                 )}
                                 <div className="text-sm break-words word-wrap pr-6 leading-relaxed">
                                   {message.content.split("\n").map((line, index) => {
+                                    // Clean the line of markdown formatting first
+                                    const cleanLine = line.replace(/\*\*(.*?)\*\*/g, "$1").trim()
+
                                     // Handle numbered lists
-                                    if (/^\d+\./.test(line.trim())) {
-                                      return (
-                                        <div key={index} className="mb-2">
-                                          <span className="font-semibold text-blue-600 dark:text-blue-400">
-                                            {line.match(/^\d+\./)?.[0]}
-                                          </span>
-                                          <span className="ml-1">{line.replace(/^\d+\.\s*/, "")}</span>
-                                        </div>
-                                      )
+                                    if (/^\d+\./.test(cleanLine)) {
+                                      const number = cleanLine.match(/^\d+\./)?.[0]
+                                      const content = cleanLine.replace(/^\d+\.\s*/, "")
+
+                                      // Check if content has a title (word followed by colon)
+                                      const titleMatch = content.match(/^([^:]+):\s*(.*)$/)
+
+                                      if (titleMatch) {
+                                        return (
+                                          <div key={index} className="mb-3">
+                                            <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                              {number}
+                                            </span>
+                                            <span className="ml-1 font-semibold text-gray-800 dark:text-gray-200">
+                                              {titleMatch[1]}:
+                                            </span>
+                                            <span className="ml-1">{titleMatch[2]}</span>
+                                          </div>
+                                        )
+                                      } else {
+                                        return (
+                                          <div key={index} className="mb-2">
+                                            <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                              {number}
+                                            </span>
+                                            <span className="ml-1">{content}</span>
+                                          </div>
+                                        )
+                                      }
                                     }
 
                                     // Handle bullet points
-                                    if (/^[•·-]/.test(line.trim())) {
+                                    if (/^[•·-]/.test(cleanLine)) {
                                       return (
                                         <div key={index} className="mb-1 ml-4">
                                           <span className="text-blue-500 mr-2">•</span>
-                                          <span>{line.replace(/^[•·-]\s*/, "")}</span>
+                                          <span>{cleanLine.replace(/^[•·-]\s*/, "")}</span>
                                         </div>
                                       )
                                     }
 
                                     // Handle warning messages
-                                    if (line.includes("⚠️")) {
+                                    if (cleanLine.includes("⚠️")) {
                                       return (
                                         <div
                                           key={index}
-                                          className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-yellow-800 dark:text-yellow-200 text-xs"
+                                          className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-yellow-800 dark:text-yellow-200 text-xs"
                                         >
-                                          {line}
+                                          {cleanLine}
                                         </div>
                                       )
                                     }
 
-                                    // Regular paragraphs
-                                    if (line.trim()) {
+                                    // Handle lines that start with "Always consult" or similar important notes
+                                    if (
+                                      cleanLine.toLowerCase().includes("always consult") ||
+                                      cleanLine.toLowerCase().includes("important")
+                                    ) {
+                                      return (
+                                        <div
+                                          key={index}
+                                          className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 text-blue-800 dark:text-blue-200 text-sm font-medium"
+                                        >
+                                          {cleanLine}
+                                        </div>
+                                      )
+                                    }
+
+                                    // Regular paragraphs with bold text handling
+                                    if (cleanLine) {
+                                      // Process any remaining bold text patterns
+                                      const parts = cleanLine.split(/(\*\*.*?\*\*)/g)
                                       return (
                                         <p key={index} className="mb-2">
-                                          {line}
+                                          {parts.map((part, partIndex) => {
+                                            if (part.startsWith("**") && part.endsWith("**")) {
+                                              const boldText = part.slice(2, -2)
+                                              return (
+                                                <span
+                                                  key={partIndex}
+                                                  className="font-semibold text-gray-800 dark:text-gray-200"
+                                                >
+                                                  {boldText}
+                                                </span>
+                                              )
+                                            }
+                                            return part
+                                          })}
                                         </p>
                                       )
                                     }

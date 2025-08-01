@@ -114,11 +114,15 @@ export async function POST(req: NextRequest) {
 
 FORMATTING GUIDELINES:
 - Use numbered lists (1., 2., 3.) for step-by-step advice
+- For each numbered point, use this format: "1. Title: Description"
 - Use bullet points (•) for general tips
-- Use clear headings and sections
-- Avoid using ** for bold text - instead use clear, well-structured sentences
 - Keep paragraphs short and readable
-- Use line breaks for better readability
+- Use clear, simple language
+- Avoid using ** for emphasis - use clear headings instead
+
+Example format:
+1. Rest: Give your neck a break and avoid activities that could aggravate the pain.
+2. Heat or Cold Therapy: Apply a warm compress or heating pad to help relax muscles.
 
 Current conversation context: You are continuing a conversation with this user. Consider the previous messages for context but focus on the current question.
 
