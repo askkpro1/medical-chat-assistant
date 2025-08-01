@@ -37,27 +37,6 @@ class Analytics {
       console.error("Analytics error:", error)
     }
   }
-
-  // Medical-specific tracking methods
-  trackSymptomQuery(symptom: string, severity: string) {
-    this.track("symptom_query", { symptom, severity })
-  }
-
-  trackEmergencyAlert(symptom: string) {
-    this.track("emergency_alert", { symptom, priority: "high" })
-  }
-
-  trackUserFeedback(messageId: string, feedback: "positive" | "negative") {
-    this.track("user_feedback", { messageId, feedback })
-  }
-
-  trackChatExport(messageCount: number) {
-    this.track("chat_export", { messageCount })
-  }
-
-  trackVoiceInput(duration: number) {
-    this.track("voice_input", { duration })
-  }
 }
 
 export const analytics = new Analytics()

@@ -29,9 +29,7 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
-function assessSeverity(question: string, isEmergency: boolean): string {
-  if (isEmergency) return "emergency"
-
+function assessSeverity(question: string): string {
   const highSeverityKeywords = [
     "severe pain",
     "high fever",
@@ -70,7 +68,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { question, isEmergency = false, chatHistory = [] } = await req.json()
+    const { question, chatHistory = [] } = await req.json()
 
     if (!question || typeof question !== "string") {
       return NextResponse.json({ error: "Question is required and must be a string" }, { status: 400 })
@@ -82,7 +80,7 @@ export async function POST(req: NextRequest) {
       content: msg.content,
     }))
 
-    const severity = assessSeverity(question, isEmergency)
+    const severity = assessSeverity(question)
 
     // Enhanced system prompt based on severity
     const systemPrompt = `You are a helpful medical assistant. Your role is to provide general health information and guidance, but you must:
@@ -92,12 +90,11 @@ export async function POST(req: NextRequest) {
 3. Provide helpful, evidence-based general health information
 4. Be empathetic and supportive
 5. Include appropriate disclaimers about not replacing professional medical advice
-6. If symptoms seem serious or emergency-related, strongly encourage immediate medical attention
+6. If symptoms seem serious, encourage consulting with a healthcare provider
 
 Current conversation context: You are continuing a conversation with this user. Consider the previous messages for context but focus on the current question.
 
 Severity level: ${severity.toUpperCase()}
-${isEmergency ? "⚠️ EMERGENCY DETECTED: This user may be experiencing a medical emergency. Prioritize safety and encourage immediate medical attention." : ""}
 
 Always end your response with: "⚠️ This information is for educational purposes only and is not a substitute for professional medical advice. Please consult with a qualified healthcare provider for proper diagnosis and treatment."`
 
@@ -106,7 +103,7 @@ Always end your response with: "⚠️ This information is for educational purpo
       model: openai("gpt-4"),
       system: systemPrompt,
       messages: [...contextMessages, { role: "user", content: question }],
-      maxTokens: isEmergency ? 300 : 500,
+      maxTokens: 500,
       temperature: 0.7,
     })
 
@@ -117,7 +114,6 @@ Always end your response with: "⚠️ This information is for educational purpo
           question: question,
           answer: text,
           severity: severity,
-          is_emergency: isEmergency,
           user_ip: ip,
           response_time: new Date(),
           context_length: chatHistory.length,
@@ -131,7 +127,6 @@ Always end your response with: "⚠️ This information is for educational purpo
     return NextResponse.json({
       answer: text,
       severity: severity,
-      isEmergency: isEmergency,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

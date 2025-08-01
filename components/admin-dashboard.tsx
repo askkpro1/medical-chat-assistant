@@ -19,14 +19,13 @@ import {
   LineChart,
   Line,
 } from "recharts"
-import { MessageSquare, AlertTriangle, Clock, ThumbsUp, ThumbsDown, Download } from "lucide-react"
+import { MessageSquare, Clock, ThumbsUp, ThumbsDown, Download } from "lucide-react"
 
 interface ChatLog {
   id: string
   question: string
   answer: string
   severity: string
-  is_emergency: boolean
   created_at: string
   user_ip: string
   feedback?: "positive" | "negative"
@@ -34,7 +33,6 @@ interface ChatLog {
 
 interface DashboardStats {
   totalChats: number
-  emergencyAlerts: number
   averageResponseTime: number
   userSatisfaction: number
   topSymptoms: Array<{ symptom: string; count: number }>
@@ -114,17 +112,6 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalChats.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">+12% from last month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Emergency Alerts</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.emergencyAlerts}</div>
-            <p className="text-xs text-muted-foreground">Requires immediate attention</p>
           </CardContent>
         </Card>
 
@@ -229,7 +216,7 @@ export default function AdminDashboard() {
               {recentChats.map((chat) => (
                 <div key={chat.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Badge variant={chat.is_emergency ? "destructive" : "secondary"} className="capitalize">
+                    <Badge variant="secondary" className="capitalize">
                       {chat.severity}
                     </Badge>
                     <span className="text-sm text-gray-500">{new Date(chat.created_at).toLocaleString()}</span>

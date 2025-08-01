@@ -15,7 +15,6 @@ export async function GET() {
 
     // Calculate stats
     const totalChats = chatLogs.length
-    const emergencyAlerts = chatLogs.filter((log) => log.is_emergency).length
     const averageResponseTime = 2.3 // Mock data - implement actual timing
 
     // Calculate user satisfaction from feedback
@@ -26,7 +25,9 @@ export async function GET() {
     // Severity distribution
     const severityCount = chatLogs.reduce(
       (acc, log) => {
-        acc[log.severity] = (acc[log.severity] || 0) + 1
+        if (log.severity !== "emergency") {
+          acc[log.severity] = (acc[log.severity] || 0) + 1
+        }
         return acc
       },
       {} as Record<string, number>,
@@ -35,14 +36,7 @@ export async function GET() {
     const severityDistribution = Object.entries(severityCount).map(([severity, count]) => ({
       severity,
       count,
-      color:
-        severity === "emergency"
-          ? "#ef4444"
-          : severity === "high"
-            ? "#f97316"
-            : severity === "medium"
-              ? "#eab308"
-              : "#22c55e",
+      color: severity === "high" ? "#f97316" : severity === "medium" ? "#eab308" : "#22c55e",
     }))
 
     // Daily usage (last 7 days)
@@ -68,7 +62,6 @@ export async function GET() {
 
     const stats = {
       totalChats,
-      emergencyAlerts,
       averageResponseTime,
       userSatisfaction,
       topSymptoms,

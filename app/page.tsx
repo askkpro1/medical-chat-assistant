@@ -22,10 +22,9 @@ import {
   ThumbsDown,
   Moon,
   Sun,
-  Phone,
-  AlertCircle,
   Clock,
   MessageSquare,
+  AlertCircle,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useTheme } from "next-themes"
@@ -37,9 +36,8 @@ interface Message {
   role: "user" | "assistant" | "system"
   content: string
   timestamp: Date
-  isEmergency?: boolean
   feedback?: "positive" | "negative"
-  severity?: "low" | "medium" | "high" | "emergency"
+  severity?: "low" | "medium" | "high"
 }
 
 interface TypingIndicator {
@@ -53,7 +51,7 @@ export default function MedicalChatAssistant() {
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [typingIndicator, setTypingIndicator] = useState<TypingIndicator>({ isTyping: false, message: "" })
-  const [chatStats, setChatStats] = useState({ totalMessages: 0, emergencyAlerts: 0 })
+  const [chatStats, setChatStats] = useState({ totalMessages: 0 })
   const { theme, setTheme } = useTheme()
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
@@ -82,7 +80,6 @@ export default function MedicalChatAssistant() {
       localStorage.setItem("medical-chat-history", JSON.stringify(messages))
       setChatStats({
         totalMessages: messages.length,
-        emergencyAlerts: messages.filter((m) => m.isEmergency).length,
       })
     }
   }, [messages])
@@ -134,37 +131,15 @@ export default function MedicalChatAssistant() {
     }
   }
 
-  const detectEmergencyKeywords = (text: string): boolean => {
-    const emergencyKeywords = [
-      "chest pain",
-      "heart attack",
-      "can't breathe",
-      "difficulty breathing",
-      "severe pain",
-      "unconscious",
-      "bleeding heavily",
-      "suicide",
-      "overdose",
-      "stroke",
-      "seizure",
-      "choking",
-      "severe allergic reaction",
-    ]
-    return emergencyKeywords.some((keyword) => text.toLowerCase().includes(keyword.toLowerCase()))
-  }
-
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
-
-    const isEmergency = detectEmergencyKeywords(input)
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content: input,
       timestamp: new Date(),
-      isEmergency,
-      severity: isEmergency ? "emergency" : "low",
+      severity: "low",
     }
 
     setMessages((prev) => [...prev, userMessage])
@@ -174,20 +149,6 @@ export default function MedicalChatAssistant() {
     // Show typing indicator
     setTypingIndicator({ isTyping: true, message: "Analyzing your symptoms..." })
 
-    // Add emergency alert if detected
-    if (isEmergency) {
-      const emergencyAlert: Message = {
-        id: (Date.now() + 0.5).toString(),
-        role: "system",
-        content:
-          "🚨 EMERGENCY DETECTED: Your symptoms may require immediate medical attention. Please call 911 or go to the nearest emergency room if you're experiencing a medical emergency.",
-        timestamp: new Date(),
-        isEmergency: true,
-        severity: "emergency",
-      }
-      setMessages((prev) => [...prev, emergencyAlert])
-    }
-
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -196,7 +157,6 @@ export default function MedicalChatAssistant() {
         },
         body: JSON.stringify({
           question: input,
-          isEmergency,
           chatHistory: messages.slice(-5), // Send last 5 messages for context
         }),
       })
@@ -270,7 +230,7 @@ export default function MedicalChatAssistant() {
   const clearChat = () => {
     setMessages([])
     localStorage.removeItem("medical-chat-history")
-    setChatStats({ totalMessages: 0, emergencyAlerts: 0 })
+    setChatStats({ totalMessages: 0 })
   }
 
   const getSeverityColor = (severity?: string) => {
@@ -302,12 +262,6 @@ export default function MedicalChatAssistant() {
                     <MessageSquare className="h-3 w-3" />
                     {chatStats.totalMessages}
                   </Badge>
-                  {chatStats.emergencyAlerts > 0 && (
-                    <Badge variant="destructive" className="flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      {chatStats.emergencyAlerts}
-                    </Badge>
-                  )}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -335,18 +289,10 @@ export default function MedicalChatAssistant() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
                   <strong>Important:</strong> This assistant provides general health information only. It is not a
-                  substitute for professional medical advice, diagnosis, or treatment.
-                  <strong className="text-red-600"> For emergencies, call 911 immediately.</strong>
+                  substitute for professional medical advice, diagnosis, or treatment. Always consult with qualified
+                  healthcare providers for medical concerns.
                 </AlertDescription>
               </Alert>
-
-              {/* Emergency Contact */}
-              <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
-                  <Phone className="h-4 w-4" />
-                  <span className="font-semibold">Emergency: 911 | Poison Control: 1-800-222-1222</span>
-                </div>
-              </div>
             </CardHeader>
           </Card>
 
