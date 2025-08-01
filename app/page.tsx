@@ -52,6 +52,7 @@ export default function MedicalChatAssistant() {
   const [isListening, setIsListening] = useState(false)
   const [typingIndicator, setTypingIndicator] = useState<TypingIndicator>({ isTyping: false, message: "" })
   const [chatStats, setChatStats] = useState({ totalMessages: 0 })
+  const [error, setError] = useState<string | null>(null)
   const { theme, setTheme } = useTheme()
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
@@ -134,6 +135,9 @@ export default function MedicalChatAssistant() {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
 
+    console.log("🚀 Sending message:", input)
+    setError(null)
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -150,6 +154,8 @@ export default function MedicalChatAssistant() {
     setTypingIndicator({ isTyping: true, message: "Analyzing your symptoms..." })
 
     try {
+      console.log("📡 Making API request...")
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -161,11 +167,17 @@ export default function MedicalChatAssistant() {
         }),
       })
 
+      console.log("📨 Response status:", response.status)
+      console.log("📨 Response headers:", Object.fromEntries(response.headers.entries()))
+
       if (!response.ok) {
-        throw new Error("Failed to get response")
+        const errorData = await response.text()
+        console.error("❌ API Error Response:", errorData)
+        throw new Error(`API Error: ${response.status} - ${errorData}`)
       }
 
       const data = await response.json()
+      console.log("✅ API Response:", data)
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -177,12 +189,14 @@ export default function MedicalChatAssistant() {
 
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
-      console.error("Error:", error)
+      console.error("💥 Error sending message:", error)
+      setError(error instanceof Error ? error.message : "Unknown error occurred")
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "I apologize, but I encountered an error. Please try again later. If this is an emergency, please call 911 immediately.",
+          "I apologize, but I encountered an error. Please try again later. For medical emergencies, please call 108 or 112 immediately.",
         timestamp: new Date(),
         severity: "medium",
       }
@@ -231,12 +245,11 @@ export default function MedicalChatAssistant() {
     setMessages([])
     localStorage.removeItem("medical-chat-history")
     setChatStats({ totalMessages: 0 })
+    setError(null)
   }
 
   const getSeverityColor = (severity?: string) => {
     switch (severity) {
-      case "emergency":
-        return "bg-red-500"
       case "high":
         return "bg-orange-500"
       case "medium":
@@ -291,8 +304,24 @@ export default function MedicalChatAssistant() {
                   <strong>Important:</strong> This assistant provides general health information only. It is not a
                   substitute for professional medical advice, diagnosis, or treatment. Always consult with qualified
                   healthcare providers for medical concerns.
+                  <strong className="text-red-600">
+                    {" "}
+                    For emergencies, call 108 (Medical Emergency) or 112 (National Emergency).
+                  </strong>
                 </AlertDescription>
               </Alert>
+
+              {/* Error Display */}
+              {error && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Error:</strong> {error}
+                    <br />
+                    <small>Check the browser console for more details.</small>
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardHeader>
           </Card>
 
@@ -481,7 +510,7 @@ export default function MedicalChatAssistant() {
           {/* Footer */}
           <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
             <p>Built with Next.js, OpenAI GPT-4, and Supabase • Always consult healthcare professionals</p>
-            <p className="text-xs mt-1">Enhanced with voice input, emergency detection, and chat export</p>
+            <p className="text-xs mt-1">For emergencies: 108 (Medical) or 112 (National Emergency) • India</p>
           </div>
         </div>
       </div>
